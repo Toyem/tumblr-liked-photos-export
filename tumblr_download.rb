@@ -2,6 +2,7 @@ require 'httparty'
 require 'fileutils'
 require 'nokogiri'
 require 'cgi'
+require 'net/http'
 require 'uri'
 
 class TumblrDownload
@@ -33,17 +34,17 @@ class TumblrDownload
 
         err = 0
         # Extract body text
-        err = download_body_text(like, download_path)
+        err += download_body_text(like, download_path)
         # Extract caption
-        err = download_caption(like, download_path)
+        err += download_caption(like, download_path)
         # Extract photos
-        err = download_photos(like, download_path)
+        err += download_photos(like, download_path)
         # Extract videos
-        err = download_video(like, download_path)
+        err += download_video(like, download_path)
         # Extract trails
-        err = download_trails(like, download_path)
+        err += download_trails(like, download_path)
         # Generate entry in database
-        if err != -1
+        if err == 0
           @tumblr_db.insert_tumblr_master(like['id'], like['blog_name'], like['type'])
         end
       end
@@ -125,13 +126,14 @@ class TumblrDownload
         file = File.basename(url)
         video_id = File.basename(file, ".*")
         uri = URI.parse(url)
-        video = uri.open('rb')
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true if uri.scheme == 'https'
+        video = http.get(uri.request_uri)
         file_path = "#{download_path}/" + file
         File.open(file_path, "wb") do |f| 
           puts "      #{url}"
-          f.write(video.read)
+          f.write(video.body)
         end
-        video.close
         @tumblr_db.insert_tumblr_video(like['id'], video_id, like['blog_name'], file_path)
       end
       return 0
