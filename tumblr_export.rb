@@ -51,6 +51,10 @@ class TumblrPhotoExport
       puts "\033[31m#{"ERROR"}\033[0m"
       puts "Forbidden. Please, enable the 'Share posts you like' option in your tumblr settings"
       return -1
+    elsif parsed_response['meta']['status'] === 404
+      puts "\033[31m#{"ERROR"}\033[0m"
+      puts "Username does not exist. Please, check your username and API_KEY"
+      return -1
     elsif parsed_response['meta']['status'] === 401
       puts "\033[31m#{"ERROR"}\033[0m"
       puts "Unauthorized. Please, check your username and API_KEY"
