@@ -41,6 +41,8 @@ class TumblrDownload
         err += download_photos(like, download_path)
         # Extract videos
         err += download_video(like, download_path)
+        # Extract audio
+        err += download_audio(like, download_path)
         # Extract trails
         err += download_trails(like, download_path)
         # Generate entry in database
@@ -121,19 +123,7 @@ class TumblrDownload
     begin
       row_url = like['video_url']
       if !(row_url.nil?)
-        url_pattern = /https?:\/\/[\S]+/
-        url = row_url.match(url_pattern)[0]
-        file = File.basename(url)
-        video_id = File.basename(file, ".*")
-        uri = URI.parse(url)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true if uri.scheme == 'https'
-        video = http.get(uri.request_uri)
-        file_path = "#{download_path}/" + file
-        File.open(file_path, "wb") do |f| 
-          puts "      #{url}"
-          f.write(video.body)
-        end
+        file_path, video_id = make_download_link(row_url, download_path)
         @tumblr_db.insert_tumblr_video(like['id'], video_id, like['blog_name'], file_path)
       end
       return 0
@@ -141,6 +131,44 @@ class TumblrDownload
       puts "\033[31mERROR\033[0m: #{e}"
       return -1
     end
+  end
+
+
+  def download_audio(like, download_path)
+    # Extract audio
+    puts "   Download audio"
+    begin
+      row_url = like['audio_url']
+      if !(row_url.nil?)
+        if row_url.include?("soundcloud")
+          raise NameError.new("Impossible to download soundcloud audio")
+        end
+        file_path, audio_id = make_download_link(row_url, download_path)
+        @tumblr_db.insert_tumblr_audio(like['id'], audio_id, like['blog_name'], file_path)
+      end
+      return 0
+    rescue => e
+      puts "\033[31mERROR\033[0m: #{e}"
+      return -1
+    end
+  end
+
+
+  def make_download_link(row_url, download_path)
+    url_pattern = /https?:\/\/[\S]+/
+    url = row_url.match(url_pattern)[0]
+    file = File.basename(url)
+    id = File.basename(file, ".*")
+    uri = URI.parse(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true if uri.scheme == 'https'
+    link = http.get(uri.request_uri)
+    file_path = "#{download_path}/" + file
+    File.open(file_path, "wb") do |f| 
+      puts "      #{url}"
+      f.write(link.body)
+    end
+    return file_path, id
   end
 
 
